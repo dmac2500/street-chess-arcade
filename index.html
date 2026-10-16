@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Street Chess Arcade // Liggins Media Edition</title>
+
+  <!-- Chessboard.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    :root {
+      --arcade-bg: #05050a;
+      --neon-cyan: #00ffff;
+      --neon-pink: #ff0055;
+      --neon-yellow: #ffee00;
+      --border-color: #222540;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--arcade-bg);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    /* --- CRT & ARCADE EFFECTS --- */
+    body::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      z-index: 99999;
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+    }
+
+    /* --- SCREENS --- */
+    .screen {
+      display: none;
+      width: 100%;
+      max-width: 960px;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeIn 0.4s ease-in-out;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* --- 1. OPENING ARCADE MENU SCREEN --- */
+    #menuScreen {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .arcade-title {
+      font-size: 2.2rem;
+      color: var(--neon-cyan);
+      text-shadow: 4px 4px var(--neon-pink), 0 0 20px var(--neon-cyan);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .arcade-subtitle {
+      font-size: 0.75rem;
+      color: var(--neon-yellow);
+      margin-bottom: 35px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px var(--neon-yellow);
+    }
+
+    .menu-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 440px;
+      margin-bottom: 35px;
+    }
+
+    .menu-btn {
+      background: transparent;
+      border: 4px solid var(--neon-cyan);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.85rem;
+      padding: 15px 20px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .menu-btn:hover, .menu-btn:focus {
+      background: var(--neon-cyan);
+      color: var(--arcade-bg);
+      box-shadow: 0 0 25px var(--neon-cyan);
+      transform: scale(1.03);
+      outline: none;
+    }
+
+    .menu-btn::before {
+      content: "▶ ";
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .menu-btn:hover::before {
+      opacity: 1;
+    }
+
+    .credit-text {
+      font-size: 0.6rem;
+      color: #888;
+      line-height: 1.8;
+    }
+
+    /* --- 2. GAME / MATCH PLAY SCREEN --- */
+    #gameScreen {
+      align-items: center;
+    }
+
+    .game-layout {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .board-container {
+      background: #101222;
+      border: 4px solid var(--neon-pink);
+      padding: 12px;
+      box-shadow: 0 0 25px rgba(255, 0, 85, 0.4);
+    }
+
+    #board {
+      width: 400px;
+      max-width: 82vw;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 340px;
+    }
+
+    .retro-box {
+      background: #101222;
+      border: 3px solid var(--neon-cyan);
+      padding: 16px;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    }
+
+    .retro-box h3 {
+      font-size: 0.7rem;
+      color: var(--neon-yellow);
+      margin-bottom: 10px;
+      border-bottom: 2px dashed #334;
+      padding-bottom: 6px;
+    }
+
+    /* Opponent Avatar & Face Expressions */
+    .opponent-arena {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #0a0c18;
+      border: 2px solid var(--neon-pink);
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+
+    .opponent-avatar {
+      font-size: 2.2rem;
+      width: 50px;
+      text-align: center;
+      animation: pulseAvatar 1.5s infinite alternate;
+    }
+
+    @keyframes pulseAvatar {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+
+    .opponent-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .opponent-name {
+      font-size: 0.65rem;
+      color: var(--neon-cyan);
+    }
+
+    .opponent-face {
+      font-size: 0.55rem;
+      color: var(--neon-yellow);
+      background: #1a1e36;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    /* Clock Timer Bar */
+    .timer-container {
+      margin-bottom: 12px;
+    }
+
+    .timer-bar-bg {
+      width: 100%;
+      height: 14px;
+      background: #222540;
+      border: 2px solid #fff;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .timer-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: var(--neon-cyan);
+      transition: width 0.1s linear, background-color 0.3s;
+    }
+
+    .timer-label {
+      font-size: 0.55rem;
+      color: #aaa;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .status-msg {
+      font-size: 0.65rem;
+      line-height: 1.5;
+      color: #fff;
+      margin-bottom: 10px;
+      min-height: 36px;
+    }
+
+    .action-btn {
+      background: var(--neon-pink);
+      border: none;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      padding: 10px;
+      cursor: pointer;
+      width: 100%;
+      text-transform: uppercase;
+      margin-top: 6px;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+      transition: background 0.1s;
+    }
+
+    .action-btn:hover {
+      background: #ff3377;
+    }
+
+    .action-btn.secondary {
+      background: #334;
+      border: 2px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: none;
+    }
+    .action-btn.secondary:hover {
+      background: var(--neon-cyan);
+      color: var(--arcade-bg);
+    }
+
+    /* --- WORLD TOUR TRAVEL FLIGHT ANIMATION SCREEN --- */
+    #flightScreen {
+      text-align: center;
+      background: #000;
+      border: 4px solid var(--neon-cyan);
+      padding: 40px 20px;
+      box-shadow: 0 0 30px var(--neon-cyan);
+    }
+
+    .flight-title {
+      font-size: 1.2rem;
+      color: var(--neon-yellow);
+      margin-bottom: 20px;
+    }
+
+    .flight-map {
+      font-size: 1.5rem;
+      letter-spacing: 4px;
+      color: var(--neon-cyan);
+      margin: 30px 0;
+      animation: blinkMap 0.8s infinite alternate;
+    }
+
+    @keyframes blinkMap {
+      from { opacity: 0.5; }
+      to { opacity: 1; }
+    }
+
+    .flight-status {
+      font-size: 0.7rem;
+      color: #fff;
+      margin-bottom: 30px;
+    }
+
+    /* --- YOUTUBE EMBED PLAYER WIDGET --- */
+    .yt-widget {
+      width: 100%;
+      height: 120px;
+      background: #000;
+      border: 2px solid #334;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .yt-widget iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* --- INFO / LEARN / PRACTICE SCREENS --- */
+    .info-screen-content {
+      background: #101222;
+      border: 4px solid var(--neon-yellow);
+      padding: 25px;
+      width: 100%;
+      max-width: 650px;
+      box-shadow: 0 0 25px rgba(255, 238, 0, 0.3);
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .info-screen-content h2 {
+      font-size: 1rem;
+      color: var(--neon-yellow);
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    .info-screen-content p {
+      font-size: 0.65rem;
+      line-height: 1.8;
+      color: #ccc;
+      margin-bottom: 12px;
+    }
+
+    .back-btn {
+      background: var(--neon-cyan);
+      border: none;
+      color: var(--arcade-bg);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.75rem;
+      padding: 12px 24px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= 1. MAIN ARCADE START MENU ================= -->
+  <div id="menuScreen" class="screen active">
+    <h1 class="arcade-title">STREET CHESS<br>ARCADE</h1>
+    <p class="arcade-subtitle">// SOUNDTRACK BY LIGGINS MEDIA //</p>
+
+    <div class="menu-options">
+      <button class="menu-btn" onclick="startMode('arcade')">1. ARCADE MODE</button>
+      <button class="menu-btn" onclick="startMode('tour')">2. WORLD TOUR</button>
+      <button class="menu-btn" onclick="startMode('practice')">3. PRACTICE MODE</button>
+      <button class="menu-btn" onclick="startMode('learn')">4. LEARN TO PLAY</button>
+    </div>
+
+    <div class="credit-text">
+      INSERT COIN TO PLAY<br>
+      © 2026 LIGGINS MEDIA // ALL RIGHTS RESERVED
+    </div>
+  </div>
+
+  <!-- ================= 2. ACTIVE GAME / MATCH SCREEN ================= -->
+  <div id="gameScreen" class="screen">
+    <div style="width: 100%; max-width: 760px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <button class="action-btn secondary" style="width: auto; padding: 8px 12px; font-size: 0.55rem;" onclick="goToMenu()">◄ MAIN MENU</button>
+      <span id="activeModeTitle" style="font-size: 0.65rem; color: var(--neon-cyan);">ARCADE MATCH</span>
+    </div>
+
+    <div class="game-layout">
+      <!-- Chessboard -->
+      <div class="board-container">
+        <div id="board"></div>
+      </div>
+
+      <!-- Right Sidebar Controls -->
+      <div class="sidebar">
+        <!-- Opponent Trash Talk & Face Expression Box -->
+        <div class="retro-box">
+          <h3>OPPONENT</h3>
+          <div class="opponent-arena">
+            <div class="opponent-avatar" id="oppAvatar">🤖</div>
+            <div class="opponent-details">
+              <div class="opponent-name" id="oppName">GRIM CHESSER</div>
+              <div class="opponent-face" id="oppFace">"Is that your best move?!"</div>
+            </div>
+          </div>
+
+          <!-- 15-Second Turn Clock Timer Bar -->
+          <div class="timer-container">
+            <div class="timer-bar-bg">
+              <div class="timer-bar-fill" id="timerFill"></div>
+            </div>
+            <div class="timer-label">
+              <span>TURN TIMER</span>
+              <span id="timerSeconds">15s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Match Status Box -->
+        <div class="retro-box">
+          <h3>MATCH STATUS</h3>
+          <div id="status" class="status-msg">Make your move before the clock runs out!</div>
+          <button class="action-btn" onclick="resetGame()">RESET BOARD</button>
+          <button class="action-btn secondary" onclick="board.flip()">FLIP BOARD</button>
+        </div>
+
+        <!-- Soundtrack Deck -->
+        <div class="retro-box">
+          <h3>SOUNDTRACK DECK</h3>
+          <button class="action-btn secondary" id="audioToggleBtn" onclick="toggleAudioStream()">START STREAM</button>
+          
+          <div class="yt-widget">
+            <div id="yt-player"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 3. WORLD TOUR FLIGHT ANIMATION SCREEN ================= -->
+  <div id="flightScreen" class="screen">
+    <div class="info-screen-content" style="text-align: center;">
+      <h2 class="flight-title" id="flightTitle">FLYING TO TOKYO...</h2>
+      <div class="flight-map" id="flightMapAnimation">✈️ . . . . 🌐 . . . . 📍</div>
+      <div class="flight-status" id="flightStatusText">Next Challenger: Grandmaster Kenji</div>
+      <button class="action-btn" style="margin-top: 20px; font-size: 0.75rem;" onclick="executeFlightLanding()">LAND &amp; PLAY MATCH</button>
+    </div>
+  </div>
+
+  <!-- ================= 4. INFO / PRACTICE / LEARN SCREENS ================= -->
+  <div id="infoScreen" class="screen">
+    <div class="info-screen-content">
+      <h2 id="infoTitle">MODE TITLE</h2>
+      <div id="infoBody">Mode description goes here.</div>
+    </div>
+    <button class="back-btn" onclick="goToMenu()">BACK TO MENU</button>
+  </div>
+
+  <!-- Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    // --- YOUTUBE API SETUP ---
+    const PLAYLIST_ID = 'PLR-_MRRJLUFg';
+    let ytPlayer = null;
+    let audioStreamingActive = false;
+
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('yt-player', {
+        height: '100%',
+        width: '100%',
+        playerVars: {
+          'listType': 'playlist',
+          'list': PLAYLIST_ID,
+          'autoplay': 0,
+          'controls': 1,
+          'loop': 1,
+          'modestbranding': 1
+        },
+        events: {
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    }
+
+    function onPlayerStateChange(event) {
+      const btn = document.getElementById('audioToggleBtn');
+      if (event.data === YT.PlayerState.PLAYING) {
+        audioStreamingActive = true;
+        btn.innerText = 'PAUSE STREAM';
+      } else {
+        audioStreamingActive = false;
+        btn.innerText = 'START STREAM';
+      }
+    }
+
+    function toggleAudioStream() {
+      if (!ytPlayer) return;
+      if (audioStreamingActive) {
+        ytPlayer.pauseVideo();
+      } else {
+        ytPlayer.playVideo();
+      }
+    }
+
+    // --- NAVIGATION & SCREENS ---
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+      if (screenId !== 'gameScreen') stopClockTimer();
+    }
+
+    function goToMenu() {
+      stopClockTimer();
+      switchScreen('menuScreen');
+    }
+
+    // --- GAME CHARACTERS & TOUR DATA ---
+    const arcadeOpponents = [
+      { name: "ROOKIE REX", avatar: "🤖", taunts: ["Hurry up!", "My grandma moves faster!", "Is that all you got?"] },
+      { name: "BARON BLUNDER", avatar: "🧐", taunts: ["Tragic tactical error...", "You fell right into my trap!", "Checkmate is near!"] },
+      { name: "QUEENIE VEE", avatar: "👑", taunts: ["Bow before my pawns!", "Pathetic opening choice.", "Tick tock, time is running out!"] }
+    ];
+
+    const tourDestinations = [
+      { city: "TOKYO, JAPAN", boss: "GRANDMASTER KENJI", avatar: "🥋", quote: "Focus your mind like a katana." },
+      { city: "PARIS, FRANCE", boss: "MADAME CLAIRE", avatar: "🍷", quote: "Chess is art, darling. You are making a mess." },
+      { city: "NEW YORK, USA", boss: "DJ BISHOP", avatar: "🎧", quote: "Feel the beat, get checkmated on the drop!" },
+      { city: "CAIRO, EGYPT", boss: "PHARAOH RAMESES", avatar: "🏺", quote: "Ancient wisdom always crushes modern haste." }
+    ];
+
+    let currentMode = 'arcade';
+    let tourIndex = 0;
+    let currentOpponent = null;
+
+    // --- 15-SECOND TURN CLOCK TIMER ---
+    let turnTimer = null;
+    let timeLeft = 15;
+
+    function startClockTimer() {
+      stopClockTimer();
+      if (game.game_over()) return;
+
+      // Only run timer on player's turn (White = 'w')
+      if (game.turn() === 'w') {
+        timeLeft = 15;
+        updateTimerDisplay();
+
+        turnTimer = setInterval(() => {
+          timeLeft--;
+          updateTimerDisplay();
+
+          if (timeLeft <= 0) {
+            stopClockTimer();
+            document.getElementById('status').innerText = '⏰ TIME OUT! YOU LOST YOUR TURN!';
+            // Skip player turn / AI takes a free move
+            setTimeout(() => {
+              makeAiMove();
+              if (!game.game_over()) startClockTimer();
+            }, 1000);
+          }
+        }, 1000);
+      } else {
+        document.getElementById('timerFill').style.width = '100%';
+        document.getElementById('timerSeconds').innerText = 'AI Turn';
+      }
+    }
+
+    function stopClockTimer() {
+      if (turnTimer) {
+        clearInterval(turnTimer);
+        turnTimer = null;
+      }
+    }
+
+    function updateTimerDisplay() {
+      const pct = (timeLeft / 15) * 100;
+      const fill = document.getElementById('timerFill');
+      fill.style.width = pct + '%';
+      fill.style.backgroundColor = timeLeft <= 5 ? 'var(--neon-pink)' : 'var(--neon-cyan)';
+      document.getElementById('timerSeconds').innerText = timeLeft + 's';
+    }
+
+    // --- START MODES ---
+    function startMode(mode) {
+      currentMode = mode;
+
+      if (mode === 'arcade') {
+        const randOp = arcadeOpponents[Math.floor(Math.random() * arcadeOpponents.length)];
+        currentOpponent = randOp;
+        setupMatchScreen('ARCADE: ' + randOp.name, randOp);
+      } 
+      else if (mode === 'tour') {
+        tourIndex = 0;
+        launchFlightSequence();
+      }
+      else if (mode === 'practice') {
+        // Practice Mode: Infinite Time Sandbox + Takeback Training Tip
+        switchScreen('infoScreen');
+        document.getElementById('infoTitle').innerText = 'PRACTICE MODE (SANDBOX)';
+        document.getElementById('infoBody').innerHTML = `
+          <p>WELCOME TO THE PRACTICE DOJO.</p>
+          <p>• NO TURN TIMERS: TAKE ALL THE TIME YOU NEED TO ANALYZE POSITIONS.</p>
+          <p>• TRAIN YOUR OPENINGS AND TEST TACTICAL SACRIFICES AGAINST THE AI.</p>
+          <p>• PERFECT FOR HONE-SHARPENING YOUR GAME BEFORE ENTERING WORLD TOUR.</p>
+        `;
+        const startPracBtn = document.createElement('button');
+        startPracBtn.className = 'back-btn';
+        startPracBtn.style.marginTop = '15px';
+        startPracBtn.innerText = 'ENTER PRACTICE DOJO';
+        startPracBtn.onclick = () => {
+          currentOpponent = { name: "DOJO MASTER", avatar: "🥋", quote: "Practice makes precision." };
+          setupMatchScreen('PRACTICE DOJO (NO TIMER)', currentOpponent, true);
+        };
+        document.querySelector('.info-screen-content').appendChild(startPracBtn);
+      }
+      else if (mode === 'learn') {
+        switchScreen('infoScreen');
+        document.getElementById('infoTitle').innerText = 'LEARN TO PLAY';
+        document.getElementById('infoBody').innerHTML = `
+          <p>1. DRAG AND DROP PIECES TO MAKE LEGAL CHESS MOVES.</p>
+          <p>2. ARCADE &amp; TOUR MODES FEATURE A 15-SECOND CLOCK. MOVE FAST OR LOSE YOUR TURN!</p>
+          <p>3. OPPONENTS WILL MAKE FACES AND TAUNT YOU WHILE YOU THINK.</p>
+          <p>4. CHECKMATE THE ENEMY KING TO WIN MATCHES AND ADVANCE AROUND THE WORLD.</p>
+          <p>5. LIGGINS MEDIA SOUNDTRACK PLAYS CONTINUOUSLY IN THE BACKGROUND.</p>
+        `;
+      }
+    }
+
+    // --- FLIGHT SEQUENCE FOR WORLD TOUR ---
+    function launchFlightSequence() {
+      const dest = tourDestinations[tourIndex];
+      switchScreen('flightScreen');
+      document.getElementById('flightTitle').innerText = `FLYING TO ${dest.city}`;
+      document.getElementById('flightStatusText').innerText = `Rival Challenger: ${dest.boss}`;
+    }
+
+    function executeFlightLanding() {
+      const dest = tourDestinations[tourIndex];
+      currentOpponent = { name: dest.boss, avatar: dest.avatar, quote: dest.quote };
+      setupMatchScreen(`TOUR [${dest.city}]`, currentOpponent);
+    }
+
+    // --- SETUP MATCH SCREEN ---
+    let board = null;
+    const game = new Chess();
+    let isPracticeMode = false;
+
+    function setupMatchScreen(titleText, opp, practice = false) {
+      isPracticeMode = practice;
+      switchScreen('gameScreen');
+      document.getElementById('activeModeTitle').innerText = titleText;
+      document.getElementById('oppName').innerText = opp.name;
+      document.getElementById('oppAvatar').innerText = opp.avatar;
+      document.getElementById('oppFace').innerText = `"${opp.quote}"`;
+
+      if (!board) {
+        board = ChessBoard('board', {
+          draggable: true,
+          position: 'start',
+          onDragStart: onBoardDragStart,
+          onDrop: onBoardDrop,
+          onSnapEnd: () => board.position(game.fen()),
+          pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+        });
+      } else {
+        game.reset();
+        board.start();
+      }
+      updateStatus();
+
+      if (ytPlayer && typeof ytPlayer.playVideo === 'function' && !audioStreamingActive) {
+        ytPlayer.playVideo();
+      }
+
+      if (!isPracticeMode) {
+        startClockTimer();
+      } else {
+        document.getElementById('timerFill').style.width = '100%';
+        document.getElementById('timerSeconds').innerText = 'Infinite';
+      }
+    }
+
+    // --- CHESS LOGIC & TAUNTS ---
+    function onBoardDragStart(source, piece, position, orientation) {
+      if (game.game_over()) return false;
+      if (piece.search(/^b/) !== -1) return false;
+    }
+
+    function makeAiMove() {
+      const moves = game.moves();
+      if (moves.length === 0) return;
+
+      const randomMove = moves[Math.floor(Math.random() * moves.length)];
+      game.move(randomMove);
+      board.position(game.fen());
+      updateStatus();
+
+      if (!isPracticeMode && !game.game_over()) {
+        startClockTimer();
+      }
+    }
+
+    function onBoardDrop(source, target) {
+      const move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q'
+      });
+
+      if (move === null) return 'snapback';
+
+      stopClockTimer();
+      updateStatus();
+
+      // Trigger random opponent face/taunt expression on player move
+      if (currentOpponent && currentOpponent.taunts && !game.game_over()) {
+        const randomTaunt = currentOpponent.taunts[Math.floor(Math.random() * currentOpponent.taunts.length)];
+        document.getElementById('oppFace').innerText = `*smirks* "${randomTaunt}"`;
+      }
+
+      if (!game.game_over()) {
+        window.setTimeout(makeAiMove, 400);
+      }
+    }
+
+    function updateStatus() {
+      let msg = '';
+      const turn = game.turn() === 'b' ? 'Black' : 'White';
+      if (game.in_checkmate()) {
+        stopClockTimer();
+        msg = `CHECKMATE! ${turn} loses.`;
+        if (currentMode === 'tour' && turn === 'Black') {
+          tourIndex++;
+          if (tourIndex < tourDestinations.length) {
+            msg += ' ADVANCING TO NEXT CITY!';
+            setTimeout(launchFlightSequence, 2000);
+          } else {
+            msg += ' WORLD TOUR CHAMPION!';
+          }
+        }
+      } else if (game.in_draw()) {
+        stopClockTimer();
+        msg = `MATCH DRAWN!`;
+      } else {
+        msg = `${turn}'s turn to move.`;
+        if (game.in_check()) msg += ' (CHECK!)';
+      }
+      document.getElementById('status').innerText = msg;
+    }
+
+    function resetGame() {
+      game.reset();
+      board.start();
+      updateStatus();
+      if (!isPracticeMode) startClockTimer();
+    }
+
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+      if (screenId !== 'gameScreen') stopClockTimer();
+    }
+
+    function goToMenu() {
+      stopClockTimer();
+      switchScreen('menuScreen');
+    }
+
+    window.addEventListener('resize', () => {
+      if (board) board.resize();
+    });
+  </script>
+</body>
+</html>
