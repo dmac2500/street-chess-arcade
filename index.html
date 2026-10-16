@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Street Chess Arcade // Liggins Media</title>
+
+  <!-- Chessboard.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    :root {
+      --arcade-bg: #05050a;
+      --neon-cyan: #00ffff;
+      --neon-pink: #ff0055;
+      --neon-yellow: #ffee00;
+      --border-color: #222540;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--arcade-bg);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    /* --- CRT & ARCADE EFFECTS --- */
+    body::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      z-index: 99999;
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+    }
+
+    /* --- SCREENS --- */
+    .screen {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeIn 0.4s ease-in-out;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* --- 1. OPENING ARCADE MENU SCREEN --- */
+    #menuScreen {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .arcade-title {
+      font-size: 2.2rem;
+      color: var(--neon-cyan);
+      text-shadow: 4px 4px var(--neon-pink), 0 0 20px var(--neon-cyan);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .arcade-subtitle {
+      font-size: 0.75rem;
+      color: var(--neon-yellow);
+      margin-bottom: 35px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px var(--neon-yellow);
+    }
+
+    .menu-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 440px;
+      margin-bottom: 35px;
+    }
+
+    .menu-btn {
+      background: transparent;
+      border: 4px solid var(--neon-cyan);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.85rem;
+      padding: 15px 20px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .menu-btn:hover, .menu-btn:focus {
+      background: var(--neon-cyan);
+      color: var(--arcade-bg);
+      box-shadow: 0 0 25px var(--neon-cyan);
+      transform: scale(1.03);
+      outline: none;
+    }
+
+    .menu-btn::before {
+      content: "▶ ";
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .menu-btn:hover::before {
+      opacity: 1;
+    }
+
+    .credit-text {
+      font-size: 0.6rem;
+      color: #888;
+      line-height: 1.8;
+    }
+
+    /* --- 2. GAME / MATCH PLAY SCREEN --- */
+    #gameScreen {
+      align-items: center;
+    }
+
+    .game-layout {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .board-container {
+      background: #101222;
+      border: 4px solid var(--neon-pink);
+      padding: 12px;
+      box-shadow: 0 0 25px rgba(255, 0, 85, 0.4);
+    }
+
+    #board {
+      width: 400px;
+      max-width: 82vw;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 320px;
+    }
+
+    .retro-box {
+      background: #101222;
+      border: 3px solid var(--neon-cyan);
+      padding: 16px;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    }
+
+    .retro-box h3 {
+      font-size: 0.7rem;
+      color: var(--neon-yellow);
+      margin-bottom: 12px;
+      border-bottom: 2px dashed #334;
+      padding-bottom: 8px;
+    }
+
+    .status-msg {
+      font-size: 0.65rem;
+      line-height: 1.6;
+      color: #fff;
+      margin-bottom: 12px;
+      min-height: 45px;
+    }
+
+    .action-btn {
+      background: var(--neon-pink);
+      border: none;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      padding: 12px;
+      cursor: pointer;
+      width: 100%;
+      text-transform: uppercase;
+      margin-top: 8px;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+      transition: background 0.1s;
+    }
+
+    .action-btn:hover {
+      background: #ff3377;
+    }
+
+    .action-btn.secondary {
+      background: #334;
+      border: 2px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: none;
+    }
+    .action-btn.secondary:hover {
+      background: var(--neon-cyan);
+      color: var(--arcade-bg);
+    }
+
+    /* --- YOUTUBE EMBED PLAYER WIDGET --- */
+    .yt-widget {
+      width: 100%;
+      height: 130px;
+      background: #000;
+      border: 2px solid #334;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .yt-widget iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* --- MODES INFO SCREEN --- */
+    .info-screen-content {
+      background: #101222;
+      border: 4px solid var(--neon-yellow);
+      padding: 25px;
+      width: 100%;
+      max-width: 650px;
+      box-shadow: 0 0 25px rgba(255, 238, 0, 0.3);
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .info-screen-content h2 {
+      font-size: 1rem;
+      color: var(--neon-yellow);
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    .info-screen-content p {
+      font-size: 0.65rem;
+      line-height: 1.8;
+      color: #ccc;
+      margin-bottom: 12px;
+    }
+
+    .back-btn {
+      background: var(--neon-cyan);
+      border: none;
+      color: var(--arcade-bg);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.75rem;
+      padding: 12px 24px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= 1. MAIN ARCADE START MENU ================= -->
+  <div id="menuScreen" class="screen active">
+    <h1 class="arcade-title">STREET CHESS<br>ARCADE</h1>
+    <p class="arcade-subtitle">// SOUNDTRACK BY LIGGINS MEDIA //</p>
+
+    <div class="menu-options">
+      <button class="menu-btn" onclick="startMode('arcade')">1. ARCADE MODE</button>
+      <button class="menu-btn" onclick="startMode('tour')">2. WORLD TOUR</button>
+      <button class="menu-btn" onclick="startMode('practice')">3. PRACTICE MODE</button>
+      <button class="menu-btn" onclick="startMode('learn')">4. LEARN TO PLAY</button>
+    </div>
+
+    <div class="credit-text">
+      INSERT COIN TO PLAY<br>
+      © 2026 LIGGINS MEDIA // ALL RIGHTS RESERVED
+    </div>
+  </div>
+
+  <!-- ================= 2. ACTIVE GAME / MATCH SCREEN ================= -->
+  <div id="gameScreen" class="screen">
+    <div style="width: 100%; max-width: 744px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <button class="action-btn secondary" style="width: auto; padding: 8px 12px; font-size: 0.6rem;" onclick="goToMenu()">◄ MAIN MENU</button>
+      <span id="activeModeTitle" style="font-size: 0.7rem; color: var(--neon-cyan);">ARCADE MATCH</span>
+    </div>
+
+    <div class="game-layout">
+      <!-- Chessboard -->
+      <div class="board-container">
+        <div id="board"></div>
+      </div>
+
+      <!-- Right Sidebar Controls -->
+      <div class="sidebar">
+        <div class="retro-box">
+          <h3>MATCH STATUS</h3>
+          <div id="status" class="status-msg">White pieces active. Make your opening move!</div>
+          <button class="action-btn" onclick="resetGame()">RESET BOARD</button>
+          <button class="action-btn secondary" onclick="board.flip()">FLIP BOARD</button>
+        </div>
+
+        <div class="retro-box">
+          <h3>SOUNDTRACK DECK</h3>
+          <div style="font-size: 0.55rem; color: #88a; margin-bottom: 6px;">Playlist: PLR-_MRRJLUFg</div>
+          <button class="action-btn secondary" id="audioToggleBtn" onclick="toggleAudioStream()">START STREAM</button>
+          
+          <!-- YouTube IFrame Embed Container -->
+          <div class="yt-widget">
+            <div id="yt-player"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 3. INFO / MODE SCREENS ================= -->
+  <div id="infoScreen" class="screen">
+    <div class="info-screen-content">
+      <h2 id="infoTitle">MODE TITLE</h2>
+      <div id="infoBody">Mode description goes here.</div>
+    </div>
+    <button class="back-btn" onclick="goToMenu()">BACK TO MENU</button>
+  </div>
+
+  <!-- Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    // --- YOUTUBE API SETUP ---
+    const PLAYLIST_ID = 'PLR-_MRRJLUFg';
+    let ytPlayer = null;
+    let audioStreamingActive = false;
+
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('yt-player', {
+        height: '100%',
+        width: '100%',
+        playerVars: {
+          'listType': 'playlist',
+          'list': PLAYLIST_ID,
+          'autoplay': 0,
+          'controls': 1,
+          'loop': 1,
+          'modestbranding': 1
+        },
+        events: {
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    }
+
+    function onPlayerStateChange(event) {
+      const btn = document.getElementById('audioToggleBtn');
+      if (event.data === YT.PlayerState.PLAYING) {
+        audioStreamingActive = true;
+        btn.innerText = 'PAUSE STREAM';
+      } else {
+        audioStreamingActive = false;
+        btn.innerText = 'START STREAM';
+      }
+    }
+
+    function toggleAudioStream() {
+      if (!ytPlayer) return;
+      if (audioStreamingActive) {
+        ytPlayer.pauseVideo();
+      } else {
+        ytPlayer.playVideo();
+      }
+    }
+
+    // --- NAVIGATION & SCREENS ---
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    function goToMenu() {
+      switchScreen('menuScreen');
+    }
+
+    let board = null;
+    const game = new Chess();
+
+    function startMode(mode) {
+      if (mode === 'arcade' || mode === 'practice' || mode === 'tour') {
+        switchScreen('gameScreen');
+        document.getElementById('activeModeTitle').innerText = mode.toUpperCase() + ' MATCH';
+        
+        // Initialize or reset chessboard layout
+        if (!board) {
+          board = ChessBoard('board', {
+            draggable: true,
+            position: 'start',
+            onDragStart: onBoardDragStart,
+            onDrop: onBoardDrop,
+            onSnapEnd: () => board.position(game.fen()),
+            pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+          });
+        } else {
+          game.reset();
+          board.start();
+        }
+        updateStatus();
+
+        // Auto-start music on arcade drop-in
+        if (ytPlayer && typeof ytPlayer.playVideo === 'function' && !audioStreamingActive) {
+          ytPlayer.playVideo();
+        }
+      } else if (mode === 'learn') {
+        switchScreen('infoScreen');
+        document.getElementById('infoTitle').innerText = 'LEARN TO PLAY';
+        document.getElementById('infoBody').innerHTML = `
+          <p>WELCOME TO STREET CHESS.</p>
+          <p>1. DRAG AND DROP PIECES TO MAKE YOUR LEGAL CHESS MOVES.</p>
+          <p>2. WHITE MOVES FIRST. AI OPPONENT AUTOMATICALLY RESPONDS.</p>
+          <p>3. CHECKMATE THE OPPOSING KING TO WIN THE ARCADE MATCH.</p>
+          <p>4. ENJOY THE UNINTERRUPTED LIGGINS MEDIA SOUNDTRACK STREAMING LIVE IN THE BACKGROUND!</p>
+        `;
+      }
+    }
+
+    // --- CHESS LOGIC ---
+    function onBoardDragStart(source, piece, position, orientation) {
+      if (game.game_over()) return false;
+      if (piece.search(/^b/) !== -1) return false; // Player is White
+    }
+
+    function makeAiMove() {
+      const moves = game.moves();
+      if (moves.length === 0) return;
+      const randomMove = moves[Math.floor(Math.random() * moves.length)];
+      game.move(randomMove);
+      board.position(game.fen());
+      updateStatus();
+    }
+
+    function onBoardDrop(source, target) {
+      const move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q'
+      });
+
+      if (move === null) return 'snapback';
+
+      updateStatus();
+      window.setTimeout(makeAiMove, 300);
+    }
+
+    function updateStatus() {
+      let msg = '';
+      const turn = game.turn() === 'b' ? 'Black' : 'White';
+      if (game.in_checkmate()) {
+        msg = `CHECKMATE! ${turn} loses the match.`;
+      } else if (game.in_draw()) {
+        msg = `MATCH DRAWN BY STALEMATE.`;
+      } else {
+        msg = `${turn}'s turn to make a move.`;
+        if (game.in_check()) msg += ' (CHECK!)';
+      }
+      document.getElementById('status').innerText = msg;
+    }
+
+    function resetGame() {
+      game.reset();
+      board.start();
+      updateStatus();
+    }
+
+    window.addEventListener('resize', () => {
+      if (board) board.resize();
+    });
+  </script>
+</body>
+</html>
